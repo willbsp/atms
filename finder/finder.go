@@ -14,7 +14,10 @@ func FindRepos(paths []string) []string {
 			continue
 		}
 
-		entries, _ := os.ReadDir(p)
+		entries, err := os.ReadDir(p)
+		if err != nil {
+			continue
+		}
 		for _, e := range entries {
 			if e.IsDir() {
 				path := filepath.Join(p, e.Name())
