@@ -1,6 +1,7 @@
 package finder
 
 import (
+	"log"
 	"os"
 	"path/filepath"
 )
@@ -16,6 +17,7 @@ func FindRepos(paths []string) []string {
 
 		entries, err := os.ReadDir(p)
 		if err != nil {
+			log.Printf("warning: unable to read directory %v\n", p)
 			continue
 		}
 		for _, e := range entries {

@@ -4,10 +4,14 @@ import (
 	"atns/config"
 	"atns/finder"
 	"fmt"
+	"log"
 )
 
 func main() {
-	cfg := config.Load()
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	repos := finder.FindRepos(cfg.SearchDirs)
 	for i, r := range repos {
