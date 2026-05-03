@@ -5,6 +5,7 @@ import (
 	"atns/git"
 	"fmt"
 	"path/filepath"
+	"strings"
 
 	"github.com/gdamore/tcell/v3"
 	"github.com/gdamore/tcell/v3/color"
@@ -13,19 +14,20 @@ import (
 )
 
 var (
-	normalStyle   = tcell.StyleDefault.Foreground(color.White)
-	dimStyle      = tcell.StyleDefault.Foreground(color.Gray)
-	selectedStyle = tcell.StyleDefault.Foreground(color.Black).Background(color.Teal).Bold(true)
-	headerStyle   = tcell.StyleDefault.Foreground(color.Teal).Bold(true)
-	promptStyle   = tcell.StyleDefault.Foreground(color.Green).Bold(true)
-	queryStyle    = tcell.StyleDefault.Foreground(color.White)
-	dividerStyle  = tcell.StyleDefault.Foreground(color.DarkCyan)
+	normalStyle        = tcell.StyleDefault.Foreground(color.White)
+	dimStyle           = tcell.StyleDefault.Foreground(color.Gray)
+	selectedStyle      = tcell.StyleDefault.Foreground(color.Black).Background(color.Teal).Bold(true)
+	headerStyle        = tcell.StyleDefault.Foreground(color.Teal).Bold(true)
+	promptStyle        = tcell.StyleDefault.Foreground(color.Green).Bold(true)
+	queryStyle         = tcell.StyleDefault.Foreground(color.White)
+	dividerStyle       = tcell.StyleDefault.Foreground(color.DarkCyan)
+	previewHeaderStyle = tcell.StyleDefault.Foreground(color.Teal).Bold(true)
 )
 
 type State struct {
 	cursor        int
 	query         string
-	filteredRepos []string
+	filteredRepos []git.Repo
 }
 
 func Run(repos []git.Repo) (string, error) {
@@ -41,12 +43,7 @@ func Run(repos []git.Repo) (string, error) {
 	s.EnableMouse()
 	s.Clear()
 
-	repoPaths := make([]string, len(repos))
-	for i, repo := range repos {
-		repoPaths[i] = repo.Path
-	}
-
-	state := State{cursor: 0, query: "", filteredRepos: repoPaths}
+	state := State{cursor: 0, query: "", filteredRepos: repos}
 	for {
 		s.Clear()
 		draw(s, &state)
@@ -55,7 +52,7 @@ func Run(repos []git.Repo) (string, error) {
 		e := <-s.EventQ()
 		switch e := e.(type) {
 		case *tcell.EventKey:
-			shouldExit, selectedRepo := handleKey(e, repoPaths, &state)
+			shouldExit, selectedRepo := handleKey(e, repos, &state)
 			if shouldExit {
 				return selectedRepo, nil
 			}
@@ -76,20 +73,44 @@ func draw(s tcell.Screen, state *State) {
 	listTop := 2
 	listHeight := h - 3
 
+	repoNames := mapRepoStrings(state.filteredRepos, func(r git.Repo) string {
+		return filepath.Base(r.Path)
+	})
+
+	selectedRepo := state.filteredRepos[state.cursor]
+
 	drawHeader(s, 1, 0)
 	drawInputLine(s, 1, 1, state.query)
-	drawList(s, 1, listTop, listHeight, state.filteredRepos, state.cursor, dividerX)
+	drawList(s, 1, listTop, listHeight, repoNames, state.cursor, dividerX)
 	drawFooter(s, 1, h-1)
 
 	if dividerX < w {
 		drawDivider(s, dividerX, h)
+	}
+
+	drawPreview(s, dividerX+3, 0, selectedRepo)
+}
+
+func drawPreview(s tcell.Screen, x, y int, repo git.Repo) {
+	drawStr(s, x, y, previewHeaderStyle, "Preview")
+	lines := []string{
+		"",
+		fmt.Sprintf("📂 %s", repo.Path),
+		strings.Repeat("─", 40),
+		"",
+		fmt.Sprintf("Branch:  %s", repo.CurrentBranch),
+		fmt.Sprintf("Commit:  %s", repo.LastCommit.Info),
+		fmt.Sprintf("Author:  %s", repo.LastCommit.Author),
+	}
+	for i, line := range lines {
+		drawStr(s, x+1, y+i+1, normalStyle, line)
 	}
 }
 
 func drawList(s tcell.Screen, x, y, h int, repos []string, cursor int, dividerX int) {
 
 	for i := 0; i < h && i < len(repos); i++ {
-		repo := filepath.Base(repos[i])
+		repo := repos[i]
 		y := y + i
 
 		if i == cursor {
@@ -128,7 +149,7 @@ func drawDivider(s tcell.Screen, x, h int) {
 	}
 }
 
-func handleKey(e *tcell.EventKey, repos []string, state *State) (bool, string) {
+func handleKey(e *tcell.EventKey, repos []git.Repo, state *State) (bool, string) {
 	switch e.Key() {
 	case tcell.KeyUp:
 		state.cursor = max(state.cursor-1, 0)
@@ -146,7 +167,7 @@ func handleKey(e *tcell.EventKey, repos []string, state *State) (bool, string) {
 			state.cursor = 0
 		}
 	case tcell.KeyEnter:
-		return true, state.filteredRepos[state.cursor]
+		return true, state.filteredRepos[state.cursor].Path
 	case tcell.KeyEsc:
 		return true, ""
 	}
@@ -154,15 +175,19 @@ func handleKey(e *tcell.EventKey, repos []string, state *State) (bool, string) {
 	return false, ""
 }
 
-func fuzzyFind(query string, list []string) []string {
+func fuzzyFind(query string, repos []git.Repo) []git.Repo {
 	if query == "" {
-		return list
+		return repos
 	}
 
-	results := fuzzy.Find(query, list)
-	filtered := make([]string, len(results))
+	paths := mapRepoStrings(repos, func(r git.Repo) string {
+		return r.Path
+	})
+
+	results := fuzzy.Find(query, paths)
+	filtered := make([]git.Repo, len(results))
 	for i, r := range results {
-		filtered[i] = list[r.Index]
+		filtered[i] = repos[r.Index]
 	}
 
 	return filtered
@@ -172,4 +197,12 @@ func drawStr(s tcell.Screen, x, y int, style tcell.Style, str string) {
 	for i, c := range str {
 		s.SetContent(x+i, y, c, nil, style)
 	}
+}
+
+func mapRepoStrings(repos []git.Repo, fn func(git.Repo) string) []string {
+	result := make([]string, len(repos))
+	for i, r := range repos {
+		result[i] = fn(r)
+	}
+	return result
 }

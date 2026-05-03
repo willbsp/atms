@@ -21,6 +21,10 @@ func main() {
 		repos[i] = git.GetRepoInfo(dir)
 	}
 
-	selected, _ := ui.Run(repos)
+	selected, err := ui.Run(repos)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	fmt.Println(selected)
 }
