@@ -21,6 +21,7 @@ var (
 	queryStyle         = tcell.StyleDefault.Foreground(color.White)
 	dividerStyle       = tcell.StyleDefault.Foreground(color.DarkCyan)
 	previewHeaderStyle = tcell.StyleDefault.Foreground(color.Teal).Bold(true)
+	treeStyle          = tcell.StyleDefault.Foreground(color.DarkCyan)
 )
 
 type State struct {
@@ -82,7 +83,7 @@ func draw(s tcell.Screen, state *State) {
 
 	drawHeader(s, 1, 0)
 	drawInputLine(s, 1, 1, state.query)
-	drawList(s, 1, listTop, listHeight, state.filteredItems, state.cursor, dividerX)
+	drawList(s, 0, listTop, listHeight, state.filteredItems, state.cursor, dividerX)
 	drawFooter(s, 1, h-1)
 
 	if dividerX < w {
@@ -118,14 +119,25 @@ func drawList(s tcell.Screen, x, y, h int, items []ListItem, cursor int, divider
 }
 
 func drawListItem(s tcell.Screen, x, y, w int, item ListItem, selected bool) {
+	const indent = 3
+
+	style := normalStyle
 	if selected {
-		for x := range w {
-			s.SetContent(x, y, ' ', nil, selectedStyle)
+		style = selectedStyle
+		for i := range w {
+			s.SetContent(x+i, y, ' ', nil, style)
 		}
-		s.PutStrStyled(x, y, "▸", selectedStyle)
-		s.PutStrStyled(x+2, y, item.Repo.Name, selectedStyle)
-	} else {
-		s.PutStrStyled(x+2, y, item.Repo.Name, normalStyle)
+		s.PutStrStyled(x+1, y, "▸", style)
+	}
+
+	connector := "├─"
+	if item.IsLast {
+		connector = "└─"
+	}
+
+	s.PutStrStyled(x+indent*(item.Depth+1), y, item.Repo.Name, style)
+	if item.Depth > 0 {
+		s.PutStrStyled(x+(indent*item.Depth), y, connector, style)
 	}
 }
 
