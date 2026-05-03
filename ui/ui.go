@@ -61,24 +61,20 @@ func Run(repos []string) (string, error) {
 
 func draw(s tcell.Screen, state *State) {
 	w, h := s.Size()
+
 	dividerX := w / 2
 	if dividerX < 30 {
 		dividerX = w
 	}
 
-	drawHeader(s, 1, 0)
-	drawInputLine(s, 1, 1, state.query)
-
 	listTop := 2
 	listHeight := h - 3
 
+	drawHeader(s, 1, 0)
+	drawInputLine(s, 1, 1, state.query)
 	drawList(s, 1, listTop, listHeight, state.filteredRepos, state.cursor, dividerX)
+	drawFooter(s, 1, h-1)
 
-	// Footer
-	footer := " ↑↓ navigate • enter select • esc quit"
-	drawStr(s, 1, h-1, dimStyle, footer)
-
-	// Divider
 	if dividerX < w {
 		drawDivider(s, dividerX, h)
 	}
@@ -107,6 +103,11 @@ func drawHeader(s tcell.Screen, x, y int) {
 	title := "atns"
 	drawStr(s, x, y, headerStyle, "  ")
 	drawStr(s, x+2, y, headerStyle, title)
+}
+
+func drawFooter(s tcell.Screen, x, y int) {
+	footer := " ↑↓ navigate • enter select • esc quit"
+	drawStr(s, x, y, dimStyle, footer)
 }
 
 func drawInputLine(s tcell.Screen, x, y int, query string) {
