@@ -4,7 +4,6 @@ package ui
 import (
 	"atns/git"
 	"fmt"
-	"path/filepath"
 	"strings"
 
 	"github.com/gdamore/tcell/v3"
@@ -27,7 +26,13 @@ var (
 type State struct {
 	cursor        int
 	query         string
-	filteredRepos []git.Repo
+	filteredItems []ListItem
+}
+
+type ListItem struct {
+	Repo   git.Repo
+	Depth  int
+	IsLast bool
 }
 
 func Run(repos []git.Repo) (string, error) {
@@ -43,7 +48,9 @@ func Run(repos []git.Repo) (string, error) {
 	s.EnableMouse()
 	s.Clear()
 
-	state := State{cursor: 0, query: "", filteredRepos: repos}
+	listItems := flattenReposToListItems(repos)
+
+	state := State{cursor: 0, query: "", filteredItems: listItems}
 	for {
 		s.Clear()
 		draw(s, &state)
@@ -52,7 +59,7 @@ func Run(repos []git.Repo) (string, error) {
 		e := <-s.EventQ()
 		switch e := e.(type) {
 		case *tcell.EventKey:
-			shouldExit, selectedRepo := handleKey(e, repos, &state)
+			shouldExit, selectedRepo := handleKey(e, listItems, &state)
 			if shouldExit {
 				return selectedRepo, nil
 			}
@@ -73,27 +80,23 @@ func draw(s tcell.Screen, state *State) {
 	listTop := 2
 	listHeight := h - 3
 
-	repoNames := mapRepoStrings(state.filteredRepos, func(r git.Repo) string {
-		return filepath.Base(r.Path)
-	})
-
 	drawHeader(s, 1, 0)
 	drawInputLine(s, 1, 1, state.query)
-	drawList(s, 1, listTop, listHeight, repoNames, state.cursor, dividerX)
+	drawList(s, 1, listTop, listHeight, state.filteredItems, state.cursor, dividerX)
 	drawFooter(s, 1, h-1)
 
 	if dividerX < w {
 		drawDivider(s, dividerX, h)
 	}
 
-	if len(state.filteredRepos) > 0 {
-		selectedRepo := state.filteredRepos[state.cursor]
-		drawPreview(s, dividerX+3, 0, selectedRepo)
+	if len(state.filteredItems) > 0 {
+		selectedItem := state.filteredItems[state.cursor]
+		drawPreview(s, dividerX+3, 0, selectedItem.Repo)
 	}
 }
 
 func drawPreview(s tcell.Screen, x, y int, repo git.Repo) {
-	drawStr(s, x, y, previewHeaderStyle, "Preview")
+	s.PutStrStyled(x, y, "Preview", previewHeaderStyle)
 	lines := []string{
 		"",
 		fmt.Sprintf("📂 %s", repo.Path),
@@ -104,43 +107,41 @@ func drawPreview(s tcell.Screen, x, y int, repo git.Repo) {
 		fmt.Sprintf("Author:  %s", repo.LastCommit.Author),
 	}
 	for i, line := range lines {
-		drawStr(s, x+1, y+i+1, normalStyle, line)
+		s.PutStrStyled(x+1, y+i+1, line, normalStyle)
 	}
 }
 
-func drawList(s tcell.Screen, x, y, h int, repos []string, cursor int, dividerX int) {
+func drawList(s tcell.Screen, x, y, h int, items []ListItem, cursor int, dividerX int) {
+	for i := 0; i < h && i < len(items); i++ {
+		drawListItem(s, x, y+i, dividerX, items[i], i == cursor)
+	}
+}
 
-	for i := 0; i < h && i < len(repos); i++ {
-		repo := repos[i]
-		y := y + i
-
-		if i == cursor {
-			for x := range dividerX {
-				s.SetContent(x, y, ' ', nil, selectedStyle)
-			}
-			drawStr(s, x, y, selectedStyle, "▸ ")
-			drawStr(s, x+2, y, selectedStyle, repo)
-		} else {
-			drawStr(s, x, y, dimStyle, "  ")
-			drawStr(s, x+2, y, normalStyle, repo)
+func drawListItem(s tcell.Screen, x, y, w int, item ListItem, selected bool) {
+	if selected {
+		for x := range w {
+			s.SetContent(x, y, ' ', nil, selectedStyle)
 		}
+		s.PutStrStyled(x, y, "▸", selectedStyle)
+		s.PutStrStyled(x+2, y, item.Repo.Name, selectedStyle)
+	} else {
+		s.PutStrStyled(x+2, y, item.Repo.Name, normalStyle)
 	}
 }
 
 func drawHeader(s tcell.Screen, x, y int) {
 	title := "atns"
-	drawStr(s, x, y, headerStyle, "  ")
-	drawStr(s, x+2, y, headerStyle, title)
+	s.PutStrStyled(x+2, y, title, headerStyle)
 }
 
 func drawFooter(s tcell.Screen, x, y int) {
 	footer := " ↑↓ navigate • enter select • esc quit"
-	drawStr(s, x, y, dimStyle, footer)
+	s.PutStrStyled(x, y, footer, dimStyle)
 }
 
 func drawInputLine(s tcell.Screen, x, y int, query string) {
-	drawStr(s, x, y, promptStyle, "❯ ")
-	drawStr(s, x+2, y, queryStyle, query)
+	s.PutStrStyled(x, y, "❯ ", promptStyle)
+	s.PutStrStyled(x+2, y, query, queryStyle)
 	s.ShowCursor(x+2+len(query), y)
 }
 
@@ -150,25 +151,25 @@ func drawDivider(s tcell.Screen, x, h int) {
 	}
 }
 
-func handleKey(e *tcell.EventKey, repos []git.Repo, state *State) (bool, string) {
+func handleKey(e *tcell.EventKey, listItems []ListItem, state *State) (bool, string) {
 	switch e.Key() {
 	case tcell.KeyUp:
 		state.cursor = max(state.cursor-1, 0)
 	case tcell.KeyDown:
-		state.cursor = min(state.cursor+1, len(state.filteredRepos)-1)
+		state.cursor = min(state.cursor+1, len(state.filteredItems)-1)
 	case tcell.KeyRune:
 		state.query += e.Str()
-		state.filteredRepos = fuzzyFind(state.query, repos)
+		state.filteredItems = fuzzyFind(state.query, listItems)
 		state.cursor = 0
 	case tcell.KeyBackspace:
 		if len(state.query) > 0 {
 			runes := []rune(state.query)
 			state.query = string(runes[:len(runes)-1])
-			state.filteredRepos = fuzzyFind(state.query, repos)
+			state.filteredItems = fuzzyFind(state.query, listItems)
 			state.cursor = 0
 		}
 	case tcell.KeyEnter:
-		return true, state.filteredRepos[state.cursor].Path
+		return true, state.filteredItems[state.cursor].Repo.Path
 	case tcell.KeyEsc:
 		return true, ""
 	}
@@ -176,34 +177,47 @@ func handleKey(e *tcell.EventKey, repos []git.Repo, state *State) (bool, string)
 	return false, ""
 }
 
-func fuzzyFind(query string, repos []git.Repo) []git.Repo {
+func fuzzyFind(query string, listItems []ListItem) []ListItem {
 	if query == "" {
-		return repos
+		return listItems
 	}
 
-	paths := mapRepoStrings(repos, func(r git.Repo) string {
-		return r.Path
+	paths := mapListItemStrings(listItems, func(r ListItem) string {
+		return r.Repo.Path
 	})
 
 	results := fuzzy.Find(query, paths)
-	filtered := make([]git.Repo, len(results))
+	filtered := make([]ListItem, len(results))
 	for i, r := range results {
-		filtered[i] = repos[r.Index]
+		filtered[i] = listItems[r.Index]
 	}
 
 	return filtered
 }
 
-func drawStr(s tcell.Screen, x, y int, style tcell.Style, str string) {
-	for i, c := range str {
-		s.SetContent(x+i, y, c, nil, style)
-	}
-}
-
-func mapRepoStrings(repos []git.Repo, fn func(git.Repo) string) []string {
+func mapListItemStrings(repos []ListItem, fn func(ListItem) string) []string {
 	result := make([]string, len(repos))
 	for i, r := range repos {
 		result[i] = fn(r)
+	}
+	return result
+}
+
+func flattenReposToListItems(repos []git.Repo) []ListItem {
+	var result []ListItem
+	for _, r := range repos {
+		result = append(result, ListItem{
+			Repo:   r,
+			Depth:  0,
+			IsLast: false,
+		})
+		for i, w := range r.Worktrees {
+			result = append(result, ListItem{
+				Repo:   w,
+				Depth:  1,
+				IsLast: i == len(r.Worktrees)-1,
+			})
+		}
 	}
 	return result
 }
