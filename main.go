@@ -3,6 +3,7 @@ package main
 import (
 	"atns/config"
 	"atns/finder"
+	"atns/ui"
 	"fmt"
 	"log"
 )
@@ -14,7 +15,6 @@ func main() {
 	}
 
 	repos := finder.FindRepos(cfg.SearchDirs)
-	for i, r := range repos {
-		fmt.Printf("Found repo #%d %v\n", i, r)
-	}
+	selected, _ := ui.Run(repos)
+	fmt.Println(selected)
 }
