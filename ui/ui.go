@@ -77,8 +77,6 @@ func draw(s tcell.Screen, state *State) {
 		return filepath.Base(r.Path)
 	})
 
-	selectedRepo := state.filteredRepos[state.cursor]
-
 	drawHeader(s, 1, 0)
 	drawInputLine(s, 1, 1, state.query)
 	drawList(s, 1, listTop, listHeight, repoNames, state.cursor, dividerX)
@@ -88,7 +86,10 @@ func draw(s tcell.Screen, state *State) {
 		drawDivider(s, dividerX, h)
 	}
 
-	drawPreview(s, dividerX+3, 0, selectedRepo)
+	if len(state.filteredRepos) > 0 {
+		selectedRepo := state.filteredRepos[state.cursor]
+		drawPreview(s, dividerX+3, 0, selectedRepo)
+	}
 }
 
 func drawPreview(s tcell.Screen, x, y int, repo git.Repo) {
@@ -98,7 +99,7 @@ func drawPreview(s tcell.Screen, x, y int, repo git.Repo) {
 		fmt.Sprintf("📂 %s", repo.Path),
 		strings.Repeat("─", 40),
 		"",
-		fmt.Sprintf("Branch:  %s", repo.CurrentBranch),
+		fmt.Sprintf("Branch:  %s", repo.Branch),
 		fmt.Sprintf("Commit:  %s", repo.LastCommit.Info),
 		fmt.Sprintf("Author:  %s", repo.LastCommit.Author),
 	}

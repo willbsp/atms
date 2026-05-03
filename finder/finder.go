@@ -1,17 +1,19 @@
 package finder
 
 import (
+	"atns/git"
 	"log"
 	"os"
 	"path/filepath"
 )
 
-func FindRepoDirs(paths []string) []string {
-	var repos []string
+func FindRepos(paths []string) []git.Repo {
+	var repos []git.Repo
 
 	for _, p := range paths {
 		if isGitRepo(p) {
-			repos = append(repos, p)
+			repo := getRepo(p)
+			repos = append(repos, repo)
 			continue
 		}
 
@@ -24,7 +26,8 @@ func FindRepoDirs(paths []string) []string {
 			if e.IsDir() {
 				path := filepath.Join(p, e.Name())
 				if isGitRepo(path) {
-					repos = append(repos, path)
+					repo := getRepo(path)
+					repos = append(repos, repo)
 				}
 			}
 		}
@@ -33,7 +36,14 @@ func FindRepoDirs(paths []string) []string {
 	return repos
 }
 
+func getRepo(path string) git.Repo {
+	repo := git.GetRepo(path)
+	repo.IsWorktree = false
+	repo.Worktrees = git.GetWorktrees(path)
+	return repo
+}
+
 func isGitRepo(path string) bool {
-	_, err := os.Stat(filepath.Join(path, ".git"))
-	return err == nil
+	info, err := os.Stat(filepath.Join(path, ".git"))
+	return err == nil && info.IsDir()
 }

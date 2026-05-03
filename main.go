@@ -3,7 +3,6 @@ package main
 import (
 	"atns/config"
 	"atns/finder"
-	"atns/git"
 	"atns/ui"
 	"fmt"
 	"log"
@@ -15,11 +14,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	dirs := finder.FindRepoDirs(cfg.SearchDirs)
-	repos := make([]git.Repo, len(dirs))
-	for i, dir := range dirs {
-		repos[i] = git.GetRepoInfo(dir)
-	}
+	repos := finder.FindRepos(cfg.SearchDirs)
 
 	selected, err := ui.Run(repos)
 	if err != nil {
