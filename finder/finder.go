@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 )
 
-func FindRepos(paths []string) []string {
+func FindRepoDirs(paths []string) []string {
 	var repos []string
 
 	for _, p := range paths {

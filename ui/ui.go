@@ -2,6 +2,7 @@ package ui
 
 // TODO implement a fuzzy finder
 import (
+	"atns/git"
 	"fmt"
 	"path/filepath"
 
@@ -27,7 +28,7 @@ type State struct {
 	filteredRepos []string
 }
 
-func Run(repos []string) (string, error) {
+func Run(repos []git.Repo) (string, error) {
 	s, err := tcell.NewScreen()
 	if err != nil {
 		return "", fmt.Errorf("Failed to create screen")
@@ -40,7 +41,12 @@ func Run(repos []string) (string, error) {
 	s.EnableMouse()
 	s.Clear()
 
-	state := State{cursor: 0, query: "", filteredRepos: repos}
+	repoPaths := make([]string, len(repos))
+	for i, repo := range repos {
+		repoPaths[i] = repo.Path
+	}
+
+	state := State{cursor: 0, query: "", filteredRepos: repoPaths}
 	for {
 		s.Clear()
 		draw(s, &state)
@@ -49,7 +55,7 @@ func Run(repos []string) (string, error) {
 		e := <-s.EventQ()
 		switch e := e.(type) {
 		case *tcell.EventKey:
-			shouldExit, selectedRepo := handleKey(e, repos, &state)
+			shouldExit, selectedRepo := handleKey(e, repoPaths, &state)
 			if shouldExit {
 				return selectedRepo, nil
 			}

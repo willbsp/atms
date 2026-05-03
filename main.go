@@ -15,14 +15,10 @@ func main() {
 		log.Fatal(err)
 	}
 
-	repos := finder.FindRepos(cfg.SearchDirs)
-	for _, repo := range repos {
-		worktrees := git.GetWorktrees(repo)
-		for _, worktree := range worktrees {
-			if worktree.Path != repo {
-				repos = append(repos, worktree.Path)
-			}
-		}
+	dirs := finder.FindRepoDirs(cfg.SearchDirs)
+	repos := make([]git.Repo, len(dirs))
+	for i, dir := range dirs {
+		repos[i] = git.GetRepoInfo(dir)
 	}
 
 	selected, _ := ui.Run(repos)

@@ -3,8 +3,17 @@ package git
 import (
 	"fmt"
 	"os/exec"
+	"path/filepath"
 	"strings"
 )
+
+type Repo struct {
+	Name          string
+	Path          string
+	CurrentBranch string
+	Worktrees     []Worktree
+	LastCommit    LastCommit
+}
 
 type Worktree struct {
 	Path   string
@@ -12,18 +21,33 @@ type Worktree struct {
 	Branch string
 }
 
-func GetCurrentBranch(repoPath string) string {
+type LastCommit struct {
+	Info   string
+	Author string
+}
+
+func GetRepoInfo(repoPath string) Repo {
+	return Repo{
+		Name:          filepath.Base(repoPath),
+		Path:          repoPath,
+		CurrentBranch: getCurrentBranch(repoPath),
+		Worktrees:     getWorktrees(repoPath),
+		LastCommit:    getLastCommitInfo(repoPath),
+	}
+}
+
+func getCurrentBranch(repoPath string) string {
 	branch, _ := gitCmd(repoPath, "rev-parse", "--abbrev-ref", "HEAD")
 	return branch
 }
 
-func GetLastCommitInfo(repoPath string) (string, string) {
-	lastCommit, _ := gitCmd(repoPath, "log", "-1", "--format=%h %s (%cr)")
+func getLastCommitInfo(repoPath string) LastCommit {
+	info, _ := gitCmd(repoPath, "log", "-1", "--format=%h %s (%cr)")
 	author, _ := gitCmd(repoPath, "log", "-1", "--format=%an")
-	return lastCommit, author
+	return LastCommit{Info: info, Author: author}
 }
 
-func GetWorktrees(repoPath string) []Worktree {
+func getWorktrees(repoPath string) []Worktree {
 	o, _ := gitCmd(repoPath, "worktree", "list", "--porcelain")
 	var trees []Worktree
 	var current Worktree
