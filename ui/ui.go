@@ -14,10 +14,10 @@ type RepoDiscoveredEvent struct {
 	Repo git.Repo
 }
 
-func Run(repoCh <-chan git.Repo, hasSession func(repoPath string) bool) (string, error) {
+func Run(repoCh <-chan git.Repo, hasSession func(git.Repo) bool) (git.Repo, error) {
 	s, err := initScreen()
 	if err != nil {
-		return "", err
+		return git.Repo{}, err
 	}
 	defer s.Fini()
 	streamRepos(s, repoCh)
@@ -79,21 +79,21 @@ func streamRepos(s tcell.Screen, repoCh <-chan git.Repo) {
 	}()
 }
 
-func flattenReposToListItems(repos []git.Repo, hasSession func(repoPath string) bool) []ListItem {
+func flattenReposToListItems(repos []git.Repo, hasSession func(git.Repo) bool) []ListItem {
 	var result []ListItem
 	for _, r := range repos {
 		result = append(result, ListItem{
 			Repo:    r,
 			Depth:   0,
 			IsLast:  false,
-			Session: hasSession(r.Path),
+			Session: hasSession(r),
 		})
 		for i, w := range r.Worktrees {
 			result = append(result, ListItem{
 				Repo:    w,
 				Depth:   1,
 				IsLast:  i == len(r.Worktrees)-1,
-				Session: hasSession(w.Path),
+				Session: hasSession(w),
 			})
 		}
 	}

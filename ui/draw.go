@@ -19,6 +19,7 @@ var (
 	dividerStyle       = tcell.StyleDefault.Foreground(color.DarkCyan)
 	previewHeaderStyle = tcell.StyleDefault.Foreground(color.Teal).Bold(true)
 	treeStyle          = tcell.StyleDefault.Foreground(color.DarkCyan)
+	selectedTreeStyle  = tcell.StyleDefault.Foreground(color.DarkCyan).Background(color.Teal).Bold(true)
 )
 
 func draw(s tcell.Screen, state *State) {
@@ -43,16 +44,16 @@ func draw(s tcell.Screen, state *State) {
 
 	if len(state.filteredItems) > 0 {
 		selectedItem := state.filteredItems[state.cursor]
-		drawPreview(s, dividerX+3, 0, selectedItem.Repo)
+		drawPreview(s, dividerX+3, 0, w, selectedItem.Repo)
 	}
 }
 
-func drawPreview(s tcell.Screen, x, y int, repo git.Repo) {
+func drawPreview(s tcell.Screen, x, y, w int, repo git.Repo) {
 	s.PutStrStyled(x, y, "Preview", previewHeaderStyle)
 	lines := []string{
 		"",
 		fmt.Sprint(repo.Path),
-		strings.Repeat("─", 40),
+		strings.Repeat("─", w-x),
 		"",
 		fmt.Sprintf("Branch:  %s", repo.Branch),
 		fmt.Sprintf("Commit:  %s", repo.LastCommit.Description),
@@ -96,8 +97,10 @@ func drawListItem(s tcell.Screen, x, y, w int, item ListItem, selected bool) {
 	const indent = 3
 
 	style := normalStyle
+	connectorStyle := treeStyle
 	if selected {
 		style = selectedStyle
+		connectorStyle = selectedTreeStyle
 		for i := range w {
 			s.SetContent(x+i, y, ' ', nil, style)
 		}
@@ -119,7 +122,7 @@ func drawListItem(s tcell.Screen, x, y, w int, item ListItem, selected bool) {
 
 	s.PutStrStyled(x+indent*(item.Depth+1), y, name, style)
 	if item.Depth > 0 {
-		s.PutStrStyled(x+(indent*item.Depth), y, connector, style)
+		s.PutStrStyled(x+(indent*item.Depth), y, connector, connectorStyle)
 	}
 }
 

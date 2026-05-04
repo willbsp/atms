@@ -19,7 +19,7 @@ type ListItem struct {
 	IsLast  bool
 }
 
-func handleKey(e *tcell.EventKey, state *State, updateState func()) (bool, string) {
+func handleKey(e *tcell.EventKey, state *State, updateState func()) (bool, git.Repo) {
 	switch e.Key() {
 	case tcell.KeyUp:
 		state.cursor = max(state.cursor-1, 0)
@@ -38,11 +38,11 @@ func handleKey(e *tcell.EventKey, state *State, updateState func()) (bool, strin
 		}
 	case tcell.KeyEnter:
 		if state.cursor >= 0 && state.cursor < len(state.filteredItems) {
-			return true, state.filteredItems[state.cursor].Repo.Path
+			return true, state.filteredItems[state.cursor].Repo
 		}
 	case tcell.KeyEsc:
-		return true, ""
+		return true, git.Repo{}
 	}
 
-	return false, ""
+	return false, git.Repo{}
 }

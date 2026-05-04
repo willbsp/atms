@@ -4,14 +4,18 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 )
 
+type SessionTarget interface {
+	Name() string
+	Dir() string
+}
+
 type SessionSet map[string]struct{}
 
-func (s SessionSet) Has(repoPath string) bool {
-	_, ok := s[sessionName(repoPath)]
+func (s SessionSet) Has(t SessionTarget) bool {
+	_, ok := s[t.Name()]
 	return ok
 }
 
@@ -27,10 +31,10 @@ func LoadSessions() SessionSet {
 	return set
 }
 
-func SwitchOrAttach(path string) error {
-	name := sessionName(path)
+func SwitchOrAttach(t SessionTarget) error {
+	name := t.Name()
 	if !hasSession(name) {
-		if o, err := tmuxCmd("new-session", "-d", "-s", name, "-c", path); err != nil {
+		if o, err := tmuxCmd("new-session", "-d", "-s", name, "-c", t.Dir()); err != nil {
 			return fmt.Errorf("failed to create session %q: %s (%w)", name, o, err)
 		}
 	}
@@ -54,11 +58,6 @@ func listSessions() []string {
 		sessions[i] = strings.TrimSpace(l)
 	}
 	return sessions
-}
-
-func sessionName(repoPath string) string {
-	name := filepath.Base(repoPath)
-	return name
 }
 
 func isInsideTmux() bool {

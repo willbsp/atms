@@ -19,6 +19,7 @@ type Repo struct {
 	Remotes        []Remote
 	Worktrees      []Repo
 	IsWorktree     bool
+	Parent         string
 }
 
 type LastCommit struct {
@@ -85,6 +86,7 @@ func getWorktrees(repoPath string) []Repo {
 			defer wg.Done()
 			tree := getRepo(p, false)
 			tree.IsWorktree = true
+			tree.Parent = filepath.Base(repoPath)
 			trees[i] = tree
 		}(i, p)
 	}
