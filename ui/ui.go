@@ -42,7 +42,7 @@ type RepoDiscoveredEvent struct {
 	Repo git.Repo
 }
 
-func Run(repoCh <-chan git.Repo, sessions []string) (string, error) {
+func Run(repoCh <-chan git.Repo, hasSession func(repoPath string) bool) (string, error) {
 	s, err := initScreen()
 	if err != nil {
 		return "", err
@@ -78,7 +78,7 @@ func Run(repoCh <-chan git.Repo, sessions []string) (string, error) {
 				)
 			})
 			discoveredRepos = slices.Insert(discoveredRepos, idx, e.Repo)
-			listItems = flattenReposToListItems(discoveredRepos, sessions)
+			listItems = flattenReposToListItems(discoveredRepos, hasSession)
 			updateFilteredItems()
 		}
 	}
@@ -332,21 +332,21 @@ func mapListItemStrings(repos []ListItem, fn func(ListItem) string) []string {
 	return result
 }
 
-func flattenReposToListItems(repos []git.Repo, sessions []string) []ListItem {
+func flattenReposToListItems(repos []git.Repo, hasSession func(repoPath string) bool) []ListItem {
 	var result []ListItem
 	for _, r := range repos {
 		result = append(result, ListItem{
 			Repo:    r,
 			Depth:   0,
 			IsLast:  false,
-			Session: slices.Contains(sessions, r.Name),
+			Session: hasSession(r.Path),
 		})
 		for i, w := range r.Worktrees {
 			result = append(result, ListItem{
 				Repo:    w,
 				Depth:   1,
 				IsLast:  i == len(r.Worktrees)-1,
-				Session: slices.Contains(sessions, w.Name),
+				Session: hasSession(w.Path),
 			})
 		}
 	}

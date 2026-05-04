@@ -8,7 +8,42 @@ import (
 	"strings"
 )
 
-func ListSessions() []string {
+type SessionSet map[string]struct{}
+
+func (s SessionSet) Has(repoPath string) bool {
+	_, ok := s[sessionName(repoPath)]
+	return ok
+}
+
+func LoadSessions() SessionSet {
+	names := listSessions()
+	set := make(SessionSet, len(names))
+	for _, n := range names {
+		if n == "" {
+			continue
+		}
+		set[n] = struct{}{}
+	}
+	return set
+}
+
+func SwitchOrAttach(path string) error {
+	name := sessionName(path)
+	if !hasSession(name) {
+		if o, err := tmuxCmd("new-session", "-d", "-s", name, "-c", path); err != nil {
+			return fmt.Errorf("failed to create session %q: %s (%w)", name, o, err)
+		}
+	}
+	if isInsideTmux() {
+		_, err := tmuxCmd("switch-client", "-t", name)
+		return err
+	}
+
+	_, err := tmuxCmd("attach-session", "-t", name)
+	return err
+}
+
+func listSessions() []string {
 	o, _ := tmuxCmd("list-sessions", "-F", "#{session_name}")
 	if o == "" {
 		return []string{}
@@ -21,32 +56,16 @@ func ListSessions() []string {
 	return sessions
 }
 
-func SwitchOrAttach(path string) error {
-	name := SessionName(path)
-	if !HasSession(name) {
-		if o, err := tmuxCmd("new-session", "-d", "-s", name, "-c", path); err != nil {
-			return fmt.Errorf("failed to create session %q: %s (%w)", name, o, err)
-		}
-	}
-	if IsInsideTmux() {
-		_, err := tmuxCmd("switch-client", "-t", name)
-		return err
-	}
-
-	_, err := tmuxCmd("attach-session", "-t", name)
-	return err
-}
-
-func SessionName(repoPath string) string {
+func sessionName(repoPath string) string {
 	name := filepath.Base(repoPath)
 	return name
 }
 
-func IsInsideTmux() bool {
+func isInsideTmux() bool {
 	return os.Getenv("TMUX") != ""
 }
 
-func HasSession(name string) bool {
+func hasSession(name string) bool {
 	cmd := exec.Command("tmux", "has-session", "-t", name)
 	return cmd.Run() == nil
 }

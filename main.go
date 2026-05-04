@@ -5,7 +5,6 @@ import (
 	"atns/finder"
 	"atns/tmux"
 	"atns/ui"
-	"fmt"
 	"log"
 )
 
@@ -16,12 +15,12 @@ func main() {
 	}
 
 	repos := finder.FindRepos(cfg.SearchDirs)
-	sessions := tmux.ListSessions()
+	sessions := tmux.LoadSessions()
 
-	selected, err := ui.Run(repos, sessions)
+	selected, err := ui.Run(repos, sessions.Has)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	fmt.Println(selected)
+	tmux.SwitchOrAttach(selected)
 }
