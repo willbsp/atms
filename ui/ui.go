@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/gdamore/tcell/v3"
 	"github.com/gdamore/tcell/v3/color"
@@ -98,11 +99,13 @@ func initScreen() (tcell.Screen, error) {
 
 func streamRepos(s tcell.Screen, repoCh <-chan git.Repo) {
 	go func() {
+		start := time.Now()
 		for repo := range repoCh {
 			ev := RepoDiscoveredEvent{Repo: repo}
 			ev.SetEventNow()
 			s.EventQ() <- &ev
 		}
+		println("Time to stream: ", time.Since(start).Milliseconds())
 	}()
 }
 
@@ -142,6 +145,7 @@ func drawPreview(s tcell.Screen, x, y int, repo git.Repo) {
 		fmt.Sprintf("Branch:  %s", repo.Branch),
 		fmt.Sprintf("Commit:  %s", repo.LastCommit.Description),
 		fmt.Sprintf("Author:  %s", repo.LastCommit.Author),
+		fmt.Sprintf("Status:  %d staged, %d unstaged, %d untracked", repo.Status.Staged, repo.Status.Unstaged, repo.Status.Untracked),
 	}
 	if len(repo.Remotes) > 0 {
 		lines = append(lines, "", "Remotes: ")
