@@ -1,33 +1,14 @@
 package finder
 
 import (
-	"atns/git"
 	"log"
 	"os"
 	"path/filepath"
-	"runtime"
-	"sync"
 )
 
-func FindRepos(paths []string) <-chan git.Repo {
-	ch := make(chan git.Repo)
-	pathCh := make(chan string)
-
-	go walkPaths(paths, pathCh)
-
-	go func() {
-		var wg sync.WaitGroup
-		for range runtime.NumCPU() {
-			wg.Go(func() {
-				for p := range pathCh {
-					ch <- git.GetRepo(p)
-				}
-			})
-		}
-		wg.Wait()
-		close(ch)
-	}()
-
+func FindRepoPaths(paths []string) <-chan string {
+	ch := make(chan string)
+	go walkPaths(paths, ch)
 	return ch
 }
 

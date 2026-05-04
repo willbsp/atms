@@ -16,7 +16,8 @@ func main() {
 		log.Fatal(err)
 	}
 
-	repos := finder.FindRepos(cfg.SearchDirs)
+	paths := finder.FindRepoPaths(cfg.SearchDirs)
+	repos := git.GetRepos(paths)
 	sessions := tmux.LoadSessions()
 
 	hasSession := func(r git.Repo) bool {

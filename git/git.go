@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 )
@@ -40,6 +41,23 @@ type Remote struct {
 
 func (s Status) IsClean() bool {
 	return s.Staged == 0 && s.Unstaged == 0 && s.Untracked == 0
+}
+
+func GetRepos(paths <-chan string) <-chan Repo {
+	ch := make(chan Repo)
+	go func() {
+		var wg sync.WaitGroup
+		for range runtime.NumCPU() {
+			wg.Go(func() {
+				for p := range paths {
+					ch <- GetRepo(p)
+				}
+			})
+		}
+		wg.Wait()
+		close(ch)
+	}()
+	return ch
 }
 
 func GetRepo(repoPath string) Repo {
