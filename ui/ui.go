@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"slices"
 	"strings"
-	"time"
 
 	"github.com/gdamore/tcell/v3"
 	"github.com/gdamore/tcell/v3/color"
@@ -99,13 +98,11 @@ func initScreen() (tcell.Screen, error) {
 
 func streamRepos(s tcell.Screen, repoCh <-chan git.Repo) {
 	go func() {
-		start := time.Now()
 		for repo := range repoCh {
 			ev := RepoDiscoveredEvent{Repo: repo}
 			ev.SetEventNow()
 			s.EventQ() <- &ev
 		}
-		println("Time to stream: ", time.Since(start).Milliseconds())
 	}()
 }
 
