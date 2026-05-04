@@ -5,16 +5,37 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sync"
 )
 
 func FindRepos(paths []string) <-chan git.Repo {
 	ch := make(chan git.Repo)
-	var repoPaths []string
+	pathCh := make(chan string)
 
+	go walkPaths(paths, pathCh)
+
+	go func() {
+		var wg sync.WaitGroup
+		for range runtime.NumCPU() {
+			wg.Go(func() {
+				for p := range pathCh {
+					ch <- git.GetRepo(p)
+				}
+			})
+		}
+		wg.Wait()
+		close(ch)
+	}()
+
+	return ch
+}
+
+func walkPaths(paths []string, pathCh chan<- string) {
+	defer close(pathCh)
 	for _, p := range paths {
 		if isGitRepo(p) {
-			repoPaths = append(repoPaths, p)
+			pathCh <- p
 			continue
 		}
 
@@ -24,29 +45,15 @@ func FindRepos(paths []string) <-chan git.Repo {
 			continue
 		}
 		for _, e := range entries {
-			if e.IsDir() {
-				path := filepath.Join(p, e.Name())
-				if isGitRepo(path) {
-					repoPaths = append(repoPaths, path)
-				}
+			if !e.IsDir() {
+				continue
+			}
+			child := filepath.Join(p, e.Name())
+			if isGitRepo(child) {
+				pathCh <- child
 			}
 		}
 	}
-
-	go func() {
-		defer close(ch)
-		var wg sync.WaitGroup
-		for _, p := range repoPaths {
-			wg.Add(1)
-			go func(p string) {
-				defer wg.Done()
-				ch <- git.GetRepo(p)
-			}(p)
-		}
-		wg.Wait()
-	}()
-
-	return ch
 }
 
 func isGitRepo(path string) bool {
