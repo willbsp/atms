@@ -5,15 +5,15 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sync"
 )
 
 func FindRepos(paths []string) []git.Repo {
-	var repos []git.Repo
+	var repoPaths []string
 
 	for _, p := range paths {
 		if isGitRepo(p) {
-			repo := getRepo(p)
-			repos = append(repos, repo)
+			repoPaths = append(repoPaths, p)
 			continue
 		}
 
@@ -26,12 +26,22 @@ func FindRepos(paths []string) []git.Repo {
 			if e.IsDir() {
 				path := filepath.Join(p, e.Name())
 				if isGitRepo(path) {
-					repo := getRepo(path)
-					repos = append(repos, repo)
+					repoPaths = append(repoPaths, path)
 				}
 			}
 		}
 	}
+
+	repos := make([]git.Repo, len(repoPaths))
+	var wg sync.WaitGroup
+	for i, p := range repoPaths {
+		wg.Add(1)
+		go func(i int, p string) {
+			defer wg.Done()
+			repos[i] = getRepo(p)
+		}(i, p)
+	}
+	wg.Wait()
 
 	return repos
 }

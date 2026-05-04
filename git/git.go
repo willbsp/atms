@@ -5,6 +5,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 )
 
 type Repo struct {
@@ -32,19 +33,29 @@ func GetRepo(repoPath string) Repo {
 
 func GetWorktrees(repoPath string) []Repo {
 	o, _ := gitCmd(repoPath, "worktree", "list", "--porcelain")
-	var trees []Repo
+	var treePaths []string
 
 	for line := range strings.SplitSeq(string(o), "\n") {
-		if strings.HasPrefix(line, "worktree ") {
-			path := strings.TrimPrefix(line, "worktree ")
+		if path, ok := strings.CutPrefix(line, "worktree "); ok {
 			if path == repoPath {
 				continue
 			}
-			repo := GetRepo(path)
-			repo.IsWorktree = true
-			trees = append(trees, repo)
+			treePaths = append(treePaths, path)
 		}
 	}
+
+	trees := make([]Repo, len(treePaths))
+	var wg sync.WaitGroup
+	for i, p := range treePaths {
+		wg.Add(1)
+		go func(i int, p string) {
+			defer wg.Done()
+			tree := GetRepo(p)
+			tree.IsWorktree = true
+			trees[i] = tree
+		}(i, p)
+	}
+	wg.Wait()
 
 	return trees
 }
