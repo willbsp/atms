@@ -31,9 +31,10 @@ type State struct {
 }
 
 type ListItem struct {
-	Repo   git.Repo
-	Depth  int
-	IsLast bool
+	Repo    git.Repo
+	Session bool
+	Depth   int
+	IsLast  bool
 }
 
 type RepoDiscoveredEvent struct {
@@ -41,7 +42,7 @@ type RepoDiscoveredEvent struct {
 	Repo git.Repo
 }
 
-func Run(repoCh <-chan git.Repo) (string, error) {
+func Run(repoCh <-chan git.Repo, sessions []string) (string, error) {
 	s, err := initScreen()
 	if err != nil {
 		return "", err
@@ -77,7 +78,7 @@ func Run(repoCh <-chan git.Repo) (string, error) {
 				)
 			})
 			discoveredRepos = slices.Insert(discoveredRepos, idx, e.Repo)
-			listItems = flattenReposToListItems(discoveredRepos)
+			listItems = flattenReposToListItems(discoveredRepos, sessions)
 			updateFilteredItems()
 		}
 	}
@@ -194,11 +195,15 @@ func drawListItem(s tcell.Screen, x, y, w int, item ListItem, selected bool) {
 		connector = "└─"
 	}
 
+	name := item.Repo.Name
 	if item.Repo.IsWorktree {
-		s.PutStrStyled(x+indent*(item.Depth+1), y, fmt.Sprintf("%v (%v)", item.Repo.Name, item.Repo.Branch), style)
-	} else {
-		s.PutStrStyled(x+indent*(item.Depth+1), y, item.Repo.Name, style)
+		name = fmt.Sprintf("%v (%v)", item.Repo.Name, item.Repo.Branch)
 	}
+	if item.Session {
+		name = fmt.Sprintf("%v •", name)
+	}
+
+	s.PutStrStyled(x+indent*(item.Depth+1), y, name, style)
 	if item.Depth > 0 {
 		s.PutStrStyled(x+(indent*item.Depth), y, connector, style)
 	}
@@ -327,19 +332,21 @@ func mapListItemStrings(repos []ListItem, fn func(ListItem) string) []string {
 	return result
 }
 
-func flattenReposToListItems(repos []git.Repo) []ListItem {
+func flattenReposToListItems(repos []git.Repo, sessions []string) []ListItem {
 	var result []ListItem
 	for _, r := range repos {
 		result = append(result, ListItem{
-			Repo:   r,
-			Depth:  0,
-			IsLast: false,
+			Repo:    r,
+			Depth:   0,
+			IsLast:  false,
+			Session: slices.Contains(sessions, r.Name),
 		})
 		for i, w := range r.Worktrees {
 			result = append(result, ListItem{
-				Repo:   w,
-				Depth:  1,
-				IsLast: i == len(r.Worktrees)-1,
+				Repo:    w,
+				Depth:   1,
+				IsLast:  i == len(r.Worktrees)-1,
+				Session: slices.Contains(sessions, w.Name),
 			})
 		}
 	}
