@@ -3,6 +3,7 @@ package main
 import (
 	"atns/config"
 	"atns/finder"
+	"atns/tmux"
 	"atns/ui"
 	"fmt"
 	"log"
@@ -15,8 +16,9 @@ func main() {
 	}
 
 	repos := finder.FindRepos(cfg.SearchDirs)
+	sessions := tmux.ListSessions()
 
-	selected, err := ui.Run(repos)
+	selected, err := ui.Run(repos, sessions)
 	if err != nil {
 		log.Fatal(err)
 	}
