@@ -12,14 +12,27 @@ type Repo struct {
 	Name       string
 	Path       string
 	Branch     string
+	Status     Status
 	LastCommit LastCommit
+	Remotes    []Remote
 	Worktrees  []Repo
 	IsWorktree bool
 }
 
 type LastCommit struct {
-	Info   string
-	Author string
+	Description string
+	Author      string
+}
+
+type Status struct {
+	Staged    int
+	Unstaged  int
+	Untracked int
+}
+
+type Remote struct {
+	Name string
+	Url  string
 }
 
 func GetRepo(repoPath string) Repo {
@@ -28,6 +41,8 @@ func GetRepo(repoPath string) Repo {
 		Path:       repoPath,
 		Branch:     getCurrentBranch(repoPath),
 		LastCommit: getLastCommitInfo(repoPath),
+		Remotes:    getRemotes(repoPath),
+		Status:     getStatusSummary(repoPath),
 	}
 }
 
@@ -66,9 +81,51 @@ func getCurrentBranch(repoPath string) string {
 }
 
 func getLastCommitInfo(repoPath string) LastCommit {
-	info, _ := gitCmd(repoPath, "log", "-1", "--format=%h %s (%cr)")
+	description, _ := gitCmd(repoPath, "log", "-1", "--format=%h %s (%cr)")
 	author, _ := gitCmd(repoPath, "log", "-1", "--format=%an")
-	return LastCommit{Info: info, Author: author}
+	return LastCommit{Description: description, Author: author}
+}
+
+func getRemotes(repoPath string) []Remote {
+	o, _ := gitCmd(repoPath, "remote", "-v")
+	if o == "" {
+		return []Remote{}
+	}
+	lines := strings.Split(strings.TrimSpace(o), "\n")
+	seen := make(map[string]bool)
+	var remotes []Remote
+	for _, line := range lines {
+		parts := strings.Fields(line)
+		if len(parts) >= 2 && !seen[parts[0]] {
+			seen[parts[0]] = true
+			remotes = append(remotes, Remote{parts[0], parts[1]})
+		}
+	}
+	return remotes
+}
+
+func getStatusSummary(repoPath string) Status {
+	status, _ := gitCmd(repoPath, "status", "--short")
+	lines := strings.Split(strings.TrimSpace(status), "\n")
+	staged, unstaged, untracked := 0, 0, 0
+	for _, line := range lines {
+		if len(line) < 2 {
+			continue
+		}
+
+		x, y := line[0], line[1]
+		if x == '?' && y == '?' {
+			untracked++
+			continue
+		}
+		if x != ' ' && x != '?' {
+			staged++
+		}
+		if y != ' ' && y != '?' {
+			unstaged++
+		}
+	}
+	return Status{staged, unstaged, untracked}
 }
 
 func gitCmd(dir string, args ...string) (string, error) {

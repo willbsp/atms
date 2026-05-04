@@ -136,12 +136,24 @@ func drawPreview(s tcell.Screen, x, y int, repo git.Repo) {
 	s.PutStrStyled(x, y, "Preview", previewHeaderStyle)
 	lines := []string{
 		"",
-		fmt.Sprintf("📂 %s", repo.Path),
+		fmt.Sprintf("%s", repo.Path),
 		strings.Repeat("─", 40),
 		"",
 		fmt.Sprintf("Branch:  %s", repo.Branch),
-		fmt.Sprintf("Commit:  %s", repo.LastCommit.Info),
+		fmt.Sprintf("Commit:  %s", repo.LastCommit.Description),
 		fmt.Sprintf("Author:  %s", repo.LastCommit.Author),
+	}
+	if len(repo.Remotes) > 0 {
+		lines = append(lines, "", "Remotes: ")
+		for _, r := range repo.Remotes {
+			lines = append(lines, fmt.Sprintf("- %v -> %v", r.Name, r.Url))
+		}
+	}
+	if len(repo.Worktrees) > 0 {
+		lines = append(lines, "", "Worktrees: ")
+		for _, w := range repo.Worktrees {
+			lines = append(lines, fmt.Sprintf("- %v (%v)", w.Path, w.Branch))
+		}
 	}
 	for i, line := range lines {
 		s.PutStrStyled(x+1, y+i+1, line, normalStyle)
@@ -171,7 +183,11 @@ func drawListItem(s tcell.Screen, x, y, w int, item ListItem, selected bool) {
 		connector = "└─"
 	}
 
-	s.PutStrStyled(x+indent*(item.Depth+1), y, item.Repo.Name, style)
+	if item.Repo.IsWorktree {
+		s.PutStrStyled(x+indent*(item.Depth+1), y, fmt.Sprintf("%v (%v)", item.Repo.Name, item.Repo.Branch), style)
+	} else {
+		s.PutStrStyled(x+indent*(item.Depth+1), y, item.Repo.Name, style)
+	}
 	if item.Depth > 0 {
 		s.PutStrStyled(x+(indent*item.Depth), y, connector, style)
 	}
