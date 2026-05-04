@@ -51,7 +51,7 @@ func Run(repoCh <-chan git.Repo) (string, error) {
 
 	var discoveredRepos []git.Repo
 	var listItems []ListItem
-	state := State{cursor: 0, query: "", filteredItems: listItems}
+	state := State{}
 	updateFilteredItems := func() {
 		state.filteredItems = fuzzyFind(state.query, listItems)
 	}
@@ -136,7 +136,7 @@ func drawPreview(s tcell.Screen, x, y int, repo git.Repo) {
 	s.PutStrStyled(x, y, "Preview", previewHeaderStyle)
 	lines := []string{
 		"",
-		fmt.Sprintf("%s", repo.Path),
+		fmt.Sprint(repo.Path),
 		strings.Repeat("─", 40),
 		"",
 		fmt.Sprintf("Branch:  %s", repo.Branch),
@@ -231,7 +231,7 @@ func handleKey(e *tcell.EventKey, state *State, updateState func()) (bool, strin
 	case tcell.KeyUp:
 		state.cursor = max(state.cursor-1, 0)
 	case tcell.KeyDown:
-		state.cursor = min(state.cursor+1, len(state.filteredItems)-1)
+		state.cursor = min(state.cursor+1, max(0, len(state.filteredItems)-1))
 	case tcell.KeyRune:
 		state.query += e.Str()
 		state.cursor = 0
@@ -244,7 +244,9 @@ func handleKey(e *tcell.EventKey, state *State, updateState func()) (bool, strin
 			updateState()
 		}
 	case tcell.KeyEnter:
-		return true, state.filteredItems[state.cursor].Repo.Path
+		if state.cursor >= 0 && state.cursor < len(state.filteredItems) {
+			return true, state.filteredItems[state.cursor].Repo.Path
+		}
 	case tcell.KeyEsc:
 		return true, ""
 	}

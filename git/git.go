@@ -167,7 +167,7 @@ func gitCmd(dir string, args ...string) (string, error) {
 	cmd.Env = append(os.Environ(), "GIT_OPTIONAL_LOCKS=0")
 	o, err := cmd.Output()
 	if err != nil {
-		return "", fmt.Errorf("git command has failed %w", err)
+		return "", fmt.Errorf("git %v failed: %w", args, err)
 	}
 
 	return strings.TrimSpace(string(o)), nil

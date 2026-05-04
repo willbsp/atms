@@ -36,7 +36,7 @@ func Save(config Config) error {
 
 	b, err := json.Marshal(config)
 	if err != nil {
-		return fmt.Errorf("failed to deserialise json %w", err)
+		return fmt.Errorf("failed to serialise json %w", err)
 	}
 	return os.WriteFile(path, b, 0644)
 }
