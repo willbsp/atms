@@ -40,20 +40,13 @@ func FindRepos(paths []string) <-chan git.Repo {
 			wg.Add(1)
 			go func(p string) {
 				defer wg.Done()
-				ch <- getRepo(p)
+				ch <- git.GetRepo(p)
 			}(p)
 		}
 		wg.Wait()
 	}()
 
 	return ch
-}
-
-func getRepo(path string) git.Repo {
-	repo := git.GetRepo(path)
-	repo.IsWorktree = false
-	repo.Worktrees = git.GetWorktrees(path)
-	return repo
 }
 
 func isGitRepo(path string) bool {

@@ -36,17 +36,26 @@ type Remote struct {
 }
 
 func GetRepo(repoPath string) Repo {
-	return Repo{
+	return getRepo(repoPath, true)
+}
+
+func getRepo(repoPath string, fetchWorktrees bool) Repo {
+	repo := Repo{
 		Name:       filepath.Base(repoPath),
 		Path:       repoPath,
 		Branch:     getCurrentBranch(repoPath),
 		LastCommit: getLastCommitInfo(repoPath),
 		Remotes:    getRemotes(repoPath),
 		Status:     getStatusSummary(repoPath),
+		IsWorktree: false,
 	}
+	if fetchWorktrees {
+		repo.Worktrees = getWorktrees(repoPath)
+	}
+	return repo
 }
 
-func GetWorktrees(repoPath string) []Repo {
+func getWorktrees(repoPath string) []Repo {
 	o, _ := gitCmd(repoPath, "worktree", "list", "--porcelain")
 	var treePaths []string
 
@@ -65,7 +74,7 @@ func GetWorktrees(repoPath string) []Repo {
 		wg.Add(1)
 		go func(i int, p string) {
 			defer wg.Done()
-			tree := GetRepo(p)
+			tree := getRepo(p, false)
 			tree.IsWorktree = true
 			trees[i] = tree
 		}(i, p)
