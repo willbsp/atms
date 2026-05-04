@@ -1,6 +1,5 @@
 package ui
 
-// TODO implement a fuzzy finder
 import (
 	"atns/git"
 	"fmt"
@@ -43,25 +42,12 @@ type RepoDiscoveredEvent struct {
 }
 
 func Run(repoCh <-chan git.Repo) (string, error) {
-	s, err := tcell.NewScreen()
+	s, err := initScreen()
 	if err != nil {
-		return "", fmt.Errorf("Failed to create screen")
-	}
-	if err := s.Init(); err != nil {
-		return "", fmt.Errorf("Failed to initialise screen")
+		return "", err
 	}
 	defer s.Fini()
-
-	s.EnableMouse()
-	s.Clear()
-
-	go func() {
-		for repo := range repoCh {
-			ev := RepoDiscoveredEvent{Repo: repo}
-			ev.SetEventNow()
-			s.EventQ() <- &ev
-		}
-	}()
+	streamRepos(s, repoCh)
 
 	var discoveredRepos []git.Repo
 	var listItems []ListItem
@@ -108,6 +94,16 @@ func initScreen() (tcell.Screen, error) {
 	s.EnableMouse()
 	s.Clear()
 	return s, nil
+}
+
+func streamRepos(s tcell.Screen, repoCh <-chan git.Repo) {
+	go func() {
+		for repo := range repoCh {
+			ev := RepoDiscoveredEvent{Repo: repo}
+			ev.SetEventNow()
+			s.EventQ() <- &ev
+		}
+	}()
 }
 
 func draw(s tcell.Screen, state *State) {
