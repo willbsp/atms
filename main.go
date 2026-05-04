@@ -22,5 +22,8 @@ func main() {
 		log.Fatal(err)
 	}
 
-	tmux.SwitchOrAttach(selected)
+	err = tmux.SwitchOrAttach(selected)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
