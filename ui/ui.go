@@ -189,21 +189,39 @@ func handleKey(e *tcell.EventKey, listItems []ListItem, state *State) (bool, str
 	return false, ""
 }
 
+// TODO good opportunity for fuzz testing
 func fuzzyFind(query string, listItems []ListItem) []ListItem {
 	if query == "" {
 		return listItems
 	}
-
 	paths := mapListItemStrings(listItems, func(r ListItem) string {
 		return r.Repo.Path
 	})
-
 	results := fuzzy.Find(query, paths)
-	filtered := make([]ListItem, len(results))
-	for i, r := range results {
-		filtered[i] = listItems[r.Index]
+
+	// TODO not in fuzzy match score order, just filtered
+	matched := map[int]bool{}
+	for _, r := range results {
+		matched[r.Index] = true
+		item := listItems[r.Index]
+		// scan backwards and mark the parent if a child
+		if item.Depth > 0 {
+			for i := r.Index; i > 0; i-- {
+				if listItems[i].Depth == 0 {
+					matched[i] = true
+					break
+				}
+			}
+		}
 	}
 
+	// rebuild list with only matched items
+	filtered := make([]ListItem, 0, len(matched))
+	for i, item := range listItems {
+		if matched[i] {
+			filtered = append(filtered, item)
+		}
+	}
 	return filtered
 }
 
