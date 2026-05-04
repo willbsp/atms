@@ -145,18 +145,28 @@ func drawPreview(s tcell.Screen, x, y int, repo git.Repo) {
 		fmt.Sprintf("Branch:  %s", repo.Branch),
 		fmt.Sprintf("Commit:  %s", repo.LastCommit.Description),
 		fmt.Sprintf("Author:  %s", repo.LastCommit.Author),
-		fmt.Sprintf("Status:  %d staged, %d unstaged, %d untracked", repo.Status.Staged, repo.Status.Unstaged, repo.Status.Untracked),
+	}
+	if !repo.Status.IsClean() {
+		lines = append(lines, fmt.Sprintf("Status:  %d staged, %d unstaged, %d untracked", repo.Status.Staged, repo.Status.Unstaged, repo.Status.Untracked))
+	} else {
+		lines = append(lines, "Status:  Clean ✓")
 	}
 	if len(repo.Remotes) > 0 {
 		lines = append(lines, "", "Remotes: ")
 		for _, r := range repo.Remotes {
-			lines = append(lines, fmt.Sprintf("- %v -> %v", r.Name, r.Url))
+			lines = append(lines, fmt.Sprintf("• %v -> %v", r.Name, r.Url))
+		}
+	}
+	if len(repo.RecentBranches) > 0 {
+		lines = append(lines, "", "Recent branches: ")
+		for _, b := range repo.RecentBranches {
+			lines = append(lines, fmt.Sprintf("• %v", b))
 		}
 	}
 	if len(repo.Worktrees) > 0 {
 		lines = append(lines, "", "Worktrees: ")
 		for _, w := range repo.Worktrees {
-			lines = append(lines, fmt.Sprintf("- %v (%v)", w.Path, w.Branch))
+			lines = append(lines, fmt.Sprintf("• %v (%v)", w.Path, w.Branch))
 		}
 	}
 	for i, line := range lines {

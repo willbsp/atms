@@ -9,14 +9,15 @@ import (
 )
 
 type Repo struct {
-	Name       string
-	Path       string
-	Branch     string
-	Status     Status
-	LastCommit LastCommit
-	Remotes    []Remote
-	Worktrees  []Repo
-	IsWorktree bool
+	Name           string
+	Path           string
+	Branch         string
+	RecentBranches []string
+	Status         Status
+	LastCommit     LastCommit
+	Remotes        []Remote
+	Worktrees      []Repo
+	IsWorktree     bool
 }
 
 type LastCommit struct {
@@ -35,19 +36,24 @@ type Remote struct {
 	Url  string
 }
 
+func (s Status) IsClean() bool {
+	return s.Staged == 0 && s.Unstaged == 0 && s.Untracked == 0
+}
+
 func GetRepo(repoPath string) Repo {
 	return getRepo(repoPath, true)
 }
 
 func getRepo(repoPath string, fetchWorktrees bool) Repo {
 	repo := Repo{
-		Name:       filepath.Base(repoPath),
-		Path:       repoPath,
-		Branch:     getCurrentBranch(repoPath),
-		LastCommit: getLastCommitInfo(repoPath),
-		Remotes:    getRemotes(repoPath),
-		Status:     getStatusSummary(repoPath),
-		IsWorktree: false,
+		Name:           filepath.Base(repoPath),
+		Path:           repoPath,
+		Branch:         getCurrentBranch(repoPath),
+		RecentBranches: getRecentBranches(repoPath, 5),
+		LastCommit:     getLastCommitInfo(repoPath),
+		Remotes:        getRemotes(repoPath),
+		Status:         getStatusSummary(repoPath),
+		IsWorktree:     false,
 	}
 	if fetchWorktrees {
 		repo.Worktrees = getWorktrees(repoPath)
@@ -114,8 +120,8 @@ func getRemotes(repoPath string) []Remote {
 }
 
 func getStatusSummary(repoPath string) Status {
-	status, _ := gitCmd(repoPath, "status", "--short")
-	lines := strings.Split(strings.TrimSpace(status), "\n")
+	o, _ := gitCmd(repoPath, "status", "--short")
+	lines := strings.Split(strings.TrimSpace(o), "\n")
 	staged, unstaged, untracked := 0, 0, 0
 	for _, line := range lines {
 		if len(line) < 2 {
@@ -135,6 +141,18 @@ func getStatusSummary(repoPath string) Status {
 		}
 	}
 	return Status{staged, unstaged, untracked}
+}
+
+func getRecentBranches(repoPath string, limit int) []string {
+	o, _ := gitCmd(repoPath, "branch", "--sort=-committerdate", "--format=%(refname:short)")
+	if strings.TrimSpace(o) == "" {
+		return []string{}
+	}
+	branches := strings.Split(strings.TrimSpace(o), "\n")
+	if len(branches) > limit {
+		return branches[:limit]
+	}
+	return branches
 }
 
 func gitCmd(dir string, args ...string) (string, error) {
