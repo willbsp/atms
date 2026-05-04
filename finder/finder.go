@@ -8,7 +8,8 @@ import (
 	"sync"
 )
 
-func FindRepos(paths []string) []git.Repo {
+func FindRepos(paths []string) <-chan git.Repo {
+	ch := make(chan git.Repo)
 	var repoPaths []string
 
 	for _, p := range paths {
@@ -32,18 +33,20 @@ func FindRepos(paths []string) []git.Repo {
 		}
 	}
 
-	repos := make([]git.Repo, len(repoPaths))
-	var wg sync.WaitGroup
-	for i, p := range repoPaths {
-		wg.Add(1)
-		go func(i int, p string) {
-			defer wg.Done()
-			repos[i] = getRepo(p)
-		}(i, p)
-	}
-	wg.Wait()
+	go func() {
+		defer close(ch)
+		var wg sync.WaitGroup
+		for _, p := range repoPaths {
+			wg.Add(1)
+			go func(p string) {
+				defer wg.Done()
+				ch <- getRepo(p)
+			}(p)
+		}
+		wg.Wait()
+	}()
 
-	return repos
+	return ch
 }
 
 func getRepo(path string) git.Repo {

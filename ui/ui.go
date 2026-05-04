@@ -37,7 +37,12 @@ type ListItem struct {
 	IsLast bool
 }
 
-func Run(repos []git.Repo) (string, error) {
+type RepoDiscoveredEvent struct {
+	tcell.EventTime
+	Repo git.Repo
+}
+
+func Run(repoCh <-chan git.Repo) (string, error) {
 	s, err := tcell.NewScreen()
 	if err != nil {
 		return "", fmt.Errorf("Failed to create screen")
@@ -50,9 +55,20 @@ func Run(repos []git.Repo) (string, error) {
 	s.EnableMouse()
 	s.Clear()
 
-	listItems := flattenReposToListItems(repos)
+	go func() {
+		for repo := range repoCh {
+			ev := RepoDiscoveredEvent{Repo: repo}
+			ev.SetEventNow()
+			s.EventQ() <- &ev
+		}
+	}()
 
+	var discoveredRepos []git.Repo
+	var listItems []ListItem
 	state := State{cursor: 0, query: "", filteredItems: listItems}
+	updateFilteredItems := func() {
+		state.filteredItems = fuzzyFind(state.query, listItems)
+	}
 	for {
 		s.Clear()
 		draw(s, &state)
@@ -61,14 +77,37 @@ func Run(repos []git.Repo) (string, error) {
 		e := <-s.EventQ()
 		switch e := e.(type) {
 		case *tcell.EventKey:
-			shouldExit, selectedRepo := handleKey(e, listItems, &state)
+			shouldExit, selectedRepo := handleKey(e, &state, updateFilteredItems)
 			if shouldExit {
 				return selectedRepo, nil
 			}
 		case *tcell.EventResize:
 			s.Sync()
+		case *RepoDiscoveredEvent:
+			idx, _ := slices.BinarySearchFunc(discoveredRepos, e.Repo, func(a, b git.Repo) int {
+				return strings.Compare(
+					strings.ToLower(a.Name),
+					strings.ToLower(b.Name),
+				)
+			})
+			discoveredRepos = slices.Insert(discoveredRepos, idx, e.Repo)
+			listItems = flattenReposToListItems(discoveredRepos)
+			updateFilteredItems()
 		}
 	}
+}
+
+func initScreen() (tcell.Screen, error) {
+	s, err := tcell.NewScreen()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create screen")
+	}
+	if err := s.Init(); err != nil {
+		return nil, fmt.Errorf("failed to initialise screen")
+	}
+	s.EnableMouse()
+	s.Clear()
+	return s, nil
 }
 
 func draw(s tcell.Screen, state *State) {
@@ -164,7 +203,7 @@ func drawDivider(s tcell.Screen, x, h int) {
 	}
 }
 
-func handleKey(e *tcell.EventKey, listItems []ListItem, state *State) (bool, string) {
+func handleKey(e *tcell.EventKey, state *State, updateState func()) (bool, string) {
 	switch e.Key() {
 	case tcell.KeyUp:
 		state.cursor = max(state.cursor-1, 0)
@@ -172,14 +211,14 @@ func handleKey(e *tcell.EventKey, listItems []ListItem, state *State) (bool, str
 		state.cursor = min(state.cursor+1, len(state.filteredItems)-1)
 	case tcell.KeyRune:
 		state.query += e.Str()
-		state.filteredItems = fuzzyFind(state.query, listItems)
 		state.cursor = 0
+		updateState()
 	case tcell.KeyBackspace:
 		if len(state.query) > 0 {
 			runes := []rune(state.query)
 			state.query = string(runes[:len(runes)-1])
-			state.filteredItems = fuzzyFind(state.query, listItems)
 			state.cursor = 0
+			updateState()
 		}
 	case tcell.KeyEnter:
 		return true, state.filteredItems[state.cursor].Repo.Path
