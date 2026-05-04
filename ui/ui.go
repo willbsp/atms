@@ -4,6 +4,7 @@ package ui
 import (
 	"atns/git"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/gdamore/tcell/v3"
@@ -189,39 +190,68 @@ func handleKey(e *tcell.EventKey, listItems []ListItem, state *State) (bool, str
 	return false, ""
 }
 
-// TODO good opportunity for fuzz testing
 func fuzzyFind(query string, listItems []ListItem) []ListItem {
 	if query == "" {
 		return listItems
 	}
-	paths := mapListItemStrings(listItems, func(r ListItem) string {
-		return r.Repo.Path
-	})
-	results := fuzzy.Find(query, paths)
+	results := fuzzy.Find(query, mapListItemStrings(listItems, func(r ListItem) string {
+		return r.Repo.Name
+	}))
 
-	// TODO not in fuzzy match score order, just filtered
-	matched := map[int]bool{}
-	for _, r := range results {
-		matched[r.Index] = true
-		item := listItems[r.Index]
-		// scan backwards and mark the parent if a child
-		if item.Depth > 0 {
-			for i := r.Index; i > 0; i-- {
-				if listItems[i].Depth == 0 {
-					matched[i] = true
-					break
-				}
+	parentOf := func(idx int) int {
+		for i := idx; i >= 0; i-- {
+			if listItems[i].Depth == 0 {
+				return i
 			}
+		}
+		return idx
+	}
+
+	type child struct {
+		index int
+		score int
+	}
+	type group struct {
+		bestScore int
+		children  []child
+	}
+	groups := map[int]*group{}
+	groupOrder := make([]int, 0, len(results))
+
+	for _, r := range results {
+		parentIdx := parentOf(r.Index)
+		g, ok := groups[parentIdx]
+		if !ok {
+			g = &group{bestScore: r.Score}
+			groups[parentIdx] = g
+			groupOrder = append(groupOrder, parentIdx)
+		}
+		if r.Score > g.bestScore {
+			g.bestScore = r.Score
+		}
+		if r.Index != parentIdx {
+			g.children = append(g.children, child{index: r.Index, score: r.Score})
 		}
 	}
 
-	// rebuild list with only matched items
-	filtered := make([]ListItem, 0, len(matched))
-	for i, item := range listItems {
-		if matched[i] {
+	slices.SortFunc(groupOrder, func(a, b int) int {
+		return groups[b].bestScore - groups[a].bestScore
+	})
+
+	filtered := make([]ListItem, 0, len(results))
+	for _, parentIdx := range groupOrder {
+		g := groups[parentIdx]
+		filtered = append(filtered, listItems[parentIdx])
+		slices.SortFunc(g.children, func(a, b child) int {
+			return b.score - a.score
+		})
+		for i, c := range g.children {
+			item := listItems[c.index]
+			item.IsLast = i == len(g.children)-1
 			filtered = append(filtered, item)
 		}
 	}
+
 	return filtered
 }
 
