@@ -2,6 +2,7 @@ package git
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -46,18 +47,20 @@ func GetRepo(repoPath string) Repo {
 
 func getRepo(repoPath string, fetchWorktrees bool) Repo {
 	repo := Repo{
-		Name:           filepath.Base(repoPath),
-		Path:           repoPath,
-		Branch:         getCurrentBranch(repoPath),
-		RecentBranches: getRecentBranches(repoPath, 5),
-		LastCommit:     getLastCommitInfo(repoPath),
-		Remotes:        getRemotes(repoPath),
-		Status:         getStatusSummary(repoPath),
-		IsWorktree:     false,
+		Name:       filepath.Base(repoPath),
+		Path:       repoPath,
+		IsWorktree: false,
 	}
+	var wg sync.WaitGroup
+	wg.Go(func() { repo.Branch = getCurrentBranch(repoPath) })
+	wg.Go(func() { repo.RecentBranches = getRecentBranches(repoPath, 5) })
+	wg.Go(func() { repo.LastCommit = getLastCommitInfo(repoPath) })
+	wg.Go(func() { repo.Remotes = getRemotes(repoPath) })
+	wg.Go(func() { repo.Status = getStatusSummary(repoPath) })
 	if fetchWorktrees {
-		repo.Worktrees = getWorktrees(repoPath)
+		wg.Go(func() { repo.Worktrees = getWorktrees(repoPath) })
 	}
+	wg.Wait()
 	return repo
 }
 
@@ -96,9 +99,12 @@ func getCurrentBranch(repoPath string) string {
 }
 
 func getLastCommitInfo(repoPath string) LastCommit {
-	description, _ := gitCmd(repoPath, "log", "-1", "--format=%h %s (%cr)")
-	author, _ := gitCmd(repoPath, "log", "-1", "--format=%an")
-	return LastCommit{Description: description, Author: author}
+	o, _ := gitCmd(repoPath, "log", "-1", "--format=%h %s (%cr)%x1f%an")
+	parts := strings.SplitN(o, "\x1f", 2)
+	if len(parts) != 2 {
+		return LastCommit{}
+	}
+	return LastCommit{Description: parts[0], Author: parts[1]}
 }
 
 func getRemotes(repoPath string) []Remote {
@@ -158,6 +164,7 @@ func getRecentBranches(repoPath string, limit int) []string {
 func gitCmd(dir string, args ...string) (string, error) {
 	cmd := exec.Command("git", args...)
 	cmd.Dir = dir
+	cmd.Env = append(os.Environ(), "GIT_OPTIONAL_LOCKS=0")
 	o, err := cmd.Output()
 	if err != nil {
 		return "", fmt.Errorf("git command has failed %w", err)
