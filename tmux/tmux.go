@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"syscall"
 )
 
 type SessionTarget interface {
@@ -43,8 +44,12 @@ func SwitchOrAttach(t SessionTarget) error {
 		return err
 	}
 
-	_, err := tmuxCmd("attach-session", "-t", name)
-	return err
+	tmux, err := exec.LookPath("tmux")
+	if err != nil {
+		return err
+	}
+
+	return syscall.Exec(tmux, []string{"tmux", "attach-session", "-t", name}, os.Environ())
 }
 
 func listSessions() []string {

@@ -53,7 +53,7 @@ func drawPreview(s tcell.Screen, x, y, w int, repo git.Repo) {
 	lines := []string{
 		"",
 		fmt.Sprint(repo.Path),
-		strings.Repeat("─", w-x),
+		strings.Repeat("─", max(0, w-x-1)),
 		"",
 		fmt.Sprintf("Branch:  %s", repo.Branch),
 		fmt.Sprintf("Commit:  %s", repo.LastCommit.Description),
@@ -94,7 +94,8 @@ func drawList(s tcell.Screen, x, y, h int, items []ListItem, cursor int, divider
 }
 
 func drawListItem(s tcell.Screen, x, y, w int, item ListItem, selected bool) {
-	const indent = 3
+	const indentSpaces = 3
+	indent := indentSpaces * (item.Depth + 1)
 
 	style := normalStyle
 	connectorStyle := treeStyle
@@ -120,9 +121,14 @@ func drawListItem(s tcell.Screen, x, y, w int, item ListItem, selected bool) {
 		name = fmt.Sprintf("%v •", name)
 	}
 
-	s.PutStrStyled(x+indent*(item.Depth+1), y, name, style)
+	maxItemNameLength := x + w - indent - 2
+	if len(name) > maxItemNameLength {
+		name = name[:max(0, maxItemNameLength)] + "…"
+	}
+
+	s.PutStrStyled(x+indent, y, name, style)
 	if item.Depth > 0 {
-		s.PutStrStyled(x+(indent*item.Depth), y, connector, connectorStyle)
+		s.PutStrStyled(x+indent-indentSpaces, y, connector, connectorStyle)
 	}
 }
 
