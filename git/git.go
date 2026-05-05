@@ -132,7 +132,7 @@ func getRemotes(repoPath string) []Remote {
 	if o == "" {
 		return []Remote{}
 	}
-	lines := strings.Split(strings.TrimSpace(o), "\n")
+	lines := strings.Split(o, "\n")
 	seen := make(map[string]bool)
 	var remotes []Remote
 	for _, line := range lines {
@@ -147,7 +147,10 @@ func getRemotes(repoPath string) []Remote {
 
 func getStatusSummary(repoPath string) Status {
 	o, _ := gitCmd(repoPath, "status", "--short")
-	lines := strings.Split(strings.TrimSpace(o), "\n")
+	if o == "" {
+		return Status{}
+	}
+	lines := strings.Split(o, "\n")
 	staged, unstaged, untracked := 0, 0, 0
 	for _, line := range lines {
 		if len(line) < 2 {
@@ -171,10 +174,10 @@ func getStatusSummary(repoPath string) Status {
 
 func getRecentBranches(repoPath string, limit int) []string {
 	o, _ := gitCmd(repoPath, "branch", "--sort=-committerdate", "--format=%(refname:short)")
-	if strings.TrimSpace(o) == "" {
+	if o == "" {
 		return []string{}
 	}
-	branches := strings.Split(strings.TrimSpace(o), "\n")
+	branches := strings.Split(o, "\n")
 	if len(branches) > limit {
 		return branches[:limit]
 	}

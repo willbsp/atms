@@ -34,7 +34,7 @@ func Save(config Config) error {
 		return fmt.Errorf("failed to create config directory %w", err)
 	}
 
-	b, err := json.Marshal(config)
+	b, err := json.MarshalIndent(config, "", " ")
 	if err != nil {
 		return fmt.Errorf("failed to serialise json %w", err)
 	}
