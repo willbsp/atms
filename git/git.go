@@ -45,11 +45,22 @@ func (s Status) IsClean() bool {
 
 func GetRepos(paths <-chan string) <-chan Repo {
 	ch := make(chan Repo)
+
+	workCh := make(chan string, 256)
+
+	go func() {
+		defer close(workCh)
+		for p := range paths {
+			ch <- Repo{Path: p, Name: filepath.Base(p)} // instant stub
+			workCh <- p                                 // hand off to workers
+		}
+	}()
+
 	go func() {
 		var wg sync.WaitGroup
 		for range runtime.NumCPU() {
 			wg.Go(func() {
-				for p := range paths {
+				for p := range workCh {
 					ch <- GetRepo(p)
 				}
 			})

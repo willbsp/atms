@@ -43,13 +43,20 @@ func Run(repoCh <-chan git.Repo, hasSession func(git.Repo) bool) (git.Repo, erro
 		case *tcell.EventResize:
 			s.Sync()
 		case *RepoDiscoveredEvent:
-			idx, _ := slices.BinarySearchFunc(discoveredRepos, e.Repo, func(a, b git.Repo) int {
-				return strings.Compare(
-					strings.ToLower(a.Name),
-					strings.ToLower(b.Name),
-				)
+			idx := slices.IndexFunc(discoveredRepos, func(r git.Repo) bool {
+				return r.Path == e.Repo.Path
 			})
-			discoveredRepos = slices.Insert(discoveredRepos, idx, e.Repo)
+			if idx != -1 {
+				discoveredRepos[idx] = e.Repo
+			} else {
+				idx, _ = slices.BinarySearchFunc(discoveredRepos, e.Repo, func(a, b git.Repo) int {
+					return strings.Compare(
+						strings.ToLower(a.Name),
+						strings.ToLower(b.Name),
+					)
+				})
+				discoveredRepos = slices.Insert(discoveredRepos, idx, e.Repo)
+			}
 			listItems = flattenReposToListItems(discoveredRepos, hasSession)
 			updateFilteredItems()
 		}
