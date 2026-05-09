@@ -1,5 +1,7 @@
 # atms
 
+![Preview](preview.gif)
+
 Another tmux sessioniser - built specifically to support workflows. A terminal UI for browsing and jumping between Git repositories open in tmux sessions.
 
 ## What it does
