@@ -28,7 +28,7 @@ jobs:
           GOOS=darwin  GOARCH=amd64 go build -ldflags="-s -w -X main.version=$VERSION" -o "dist/${BINARY}-darwin-amd64" .
           GOOS=darwin  GOARCH=arm64 go build -ldflags="-s -w -X main.version=$VERSION" -o "dist/${BINARY}-darwin-arm64" .
           GOOS=windows GOARCH=amd64 go build -ldflags="-s -w -X main.version=$VERSION" -o "dist/${BINARY}-windows-amd64.exe" .
-       - name: Generate checksums
+      - name: Generate checksums
         run: |
           cd dist
           sha256sum * > checksums.txt
