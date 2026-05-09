@@ -44,15 +44,14 @@ func (s Status) IsClean() bool {
 }
 
 func GetRepos(paths <-chan string) <-chan Repo {
-	ch := make(chan Repo)
-
+	ch := make(chan Repo, 256)
 	workCh := make(chan string, 256)
 
 	go func() {
 		defer close(workCh)
 		for p := range paths {
-			ch <- Repo{Path: p, Name: filepath.Base(p)} // instant stub
-			workCh <- p                                 // hand off to workers
+			ch <- Repo{Path: p, Name: filepath.Base(p)}
+			workCh <- p
 		}
 	}()
 
