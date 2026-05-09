@@ -1,11 +1,11 @@
 package main
 
 import (
-	"atns/config"
-	"atns/finder"
-	"atns/git"
-	"atns/tmux"
-	"atns/ui"
+	"atms/config"
+	"atms/finder"
+	"atms/git"
+	"atms/tmux"
+	"atms/ui"
 	"log"
 	"path/filepath"
 )

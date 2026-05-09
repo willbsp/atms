@@ -64,8 +64,8 @@ func buildDefaultConfig() (Config, error) {
 
 func configPath() string {
 	if xdg := os.Getenv("XDG_CONFIG_HOME"); xdg != "" {
-		return filepath.Join(xdg, "atns", "config.json")
+		return filepath.Join(xdg, "atms", "config.json")
 	}
 	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".config", "atns", "config.json")
+	return filepath.Join(home, ".config", "atms", "config.json")
 }

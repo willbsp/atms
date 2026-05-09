@@ -1,7 +1,7 @@
 package ui
 
 import (
-	"atns/git"
+	"atms/git"
 	"fmt"
 	"strings"
 
@@ -133,7 +133,7 @@ func drawListItem(s tcell.Screen, x, y, w int, item ListItem, selected bool) {
 }
 
 func drawHeader(s tcell.Screen, x, y int) {
-	title := "atns"
+	title := "atms"
 	s.PutStrStyled(x+2, y, title, headerStyle)
 }
 

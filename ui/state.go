@@ -1,7 +1,7 @@
 package ui
 
 import (
-	"atns/git"
+	"atms/git"
 
 	"github.com/gdamore/tcell/v3"
 )
