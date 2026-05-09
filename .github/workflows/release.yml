@@ -23,12 +23,12 @@ jobs:
           MODULE=$(go list -m)
           BINARY=$(basename "$MODULE")
           VERSION=${GITHUB_REF#refs/tags/}
-          GOOS=linux   GOARCH=amd64 go build -ldflags="-s -w -X main.version=$VERSION" -o "dist/${BINARY}-linux-amd64" ./...
-          GOOS=linux   GOARCH=arm64 go build -ldflags="-s -w -X main.version=$VERSION" -o "dist/${BINARY}-linux-arm64" ./...
-          GOOS=darwin  GOARCH=amd64 go build -ldflags="-s -w -X main.version=$VERSION" -o "dist/${BINARY}-darwin-amd64" ./...
-          GOOS=darwin  GOARCH=arm64 go build -ldflags="-s -w -X main.version=$VERSION" -o "dist/${BINARY}-darwin-arm64" ./...
-          GOOS=windows GOARCH=amd64 go build -ldflags="-s -w -X main.version=$VERSION" -o "dist/${BINARY}-windows-amd64.exe" ./...
-      - name: Generate checksums
+          GOOS=linux   GOARCH=amd64 go build -ldflags="-s -w -X main.version=$VERSION" -o "dist/${BINARY}-linux-amd64" .
+          GOOS=linux   GOARCH=arm64 go build -ldflags="-s -w -X main.version=$VERSION" -o "dist/${BINARY}-linux-arm64" .
+          GOOS=darwin  GOARCH=amd64 go build -ldflags="-s -w -X main.version=$VERSION" -o "dist/${BINARY}-darwin-amd64" .
+          GOOS=darwin  GOARCH=arm64 go build -ldflags="-s -w -X main.version=$VERSION" -o "dist/${BINARY}-darwin-arm64" .
+          GOOS=windows GOARCH=amd64 go build -ldflags="-s -w -X main.version=$VERSION" -o "dist/${BINARY}-windows-amd64.exe" .
+       - name: Generate checksums
         run: |
           cd dist
           sha256sum * > checksums.txt
